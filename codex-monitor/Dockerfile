@@ -2,6 +2,12 @@ FROM codex-base:latest
 
 USER root
 
+RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable && \
+    chmod o+rx /root && \
+    chmod -R a+rx /root/.cargo /root/.rustup
+
+ENV PATH="/root/.cargo/bin:$PATH"
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
@@ -14,18 +20,26 @@ WORKDIR /home/codex
 
 SHELL ["/bin/bash", "-lc"]
 
-ENV PATH=/home/codex/bin:/home/codex/.cargo/bin:$PATH
+RUN mkdir -p /home/codex/bin && \
+    git clone --depth 1 https://github.com/Dimillian/CodexMonitor.git codexmonitor-src && \
+    source "$NVM_DIR/nvm.sh" && \
+    cd codexmonitor-src && \
+    npm install && \
+    cd src-tauri && \
+    cargo build --locked --release --bin codex_monitor_daemon --bin codex_monitor_daemonctl && \
+    install -m 0755 target/release/codex_monitor_daemon /home/codex/bin/codex_monitor_daemon && \
+    install -m 0755 target/release/codex_monitor_daemonctl /home/codex/bin/codex_monitor_daemonctl && \
+    rm -rf /home/codex/codexmonitor-src
 
-RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable && \
-    mkdir -p /home/codex/bin && \
-    git clone --depth 1 https://github.com/Dimillian/CodexMonitor.git /home/codex/CodexMonitor && \
-    cargo build --locked --release \
-      --manifest-path /home/codex/CodexMonitor/src-tauri/Cargo.toml \
-      --bin codex_monitor_daemon \
-      --bin codex_monitor_daemonctl && \
-    install -m 0755 /home/codex/CodexMonitor/src-tauri/target/release/codex_monitor_daemon /home/codex/bin/codex_monitor_daemon && \
-    install -m 0755 /home/codex/CodexMonitor/src-tauri/target/release/codex_monitor_daemonctl /home/codex/bin/codex_monitor_daemonctl && \
-    rm -rf /home/codex/CodexMonitor
+ENV PATH="/home/codex/bin:$PATH"
+
+USER root
+
+RUN rm -rf /root/.cargo /root/.rustup && \
+    apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+USER codex
 
 COPY --chown=codex:codex entrypoint.sh /home/codex/entrypoint-monitor.sh
 RUN chmod +x /home/codex/entrypoint-monitor.sh
