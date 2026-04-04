@@ -131,7 +131,7 @@ docker run --rm -it \
   codex-monitor:latest
 ```
 
-Add `OPENAI_API_KEY` and `GITHUB_TOKEN` in interactive mode if you intend to run authenticated Codex or GitHub commands inside the container.
+Interactive mode does not enforce `OPENAI_API_KEY` or `GITHUB_TOKEN`, and it does not run `gh auth login` during startup. If you want authenticated Codex or GitHub commands in that shell session, provide the credentials yourself and authenticate manually as needed.
 
 ## Environment Variables
 
@@ -150,8 +150,8 @@ Add `OPENAI_API_KEY` and `GITHUB_TOKEN` in interactive mode if you intend to run
 | Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
 | `MODE` | No | `daemon` | Supported values: `daemon`, `interactive` |
-| `OPENAI_API_KEY` | Daemon mode | none | Required only when `MODE=daemon` |
-| `GITHUB_TOKEN` | Daemon mode | none | Required only when `MODE=daemon` |
+| `OPENAI_API_KEY` | Daemon mode | none | Required only when `MODE=daemon`; not checked in interactive mode |
+| `GITHUB_TOKEN` | Daemon mode | none | Required only when `MODE=daemon`; used for `gh auth login --with-token` only in daemon mode |
 | `CODEX_MONITOR_HOST` | No | `0.0.0.0` | Daemon bind host |
 | `CODEX_MONITOR_PORT` | No | `4732` | Daemon listen port |
 | `CODEX_MONITOR_TOKEN` | No | unset | Passed to the daemon as `--token` when set |
@@ -219,7 +219,7 @@ For access outside a trusted LAN, prefer a VPN, SSH tunnel, or reverse proxy wit
 ## Security Notes
 
 - `OPENAI_API_KEY` and `GITHUB_TOKEN` are sensitive secrets; pass them with environment management appropriate for your system.
-- `gh auth login --with-token` is executed by the entrypoint whenever required tokens are present.
+- In `codex-monitor`, `gh auth login --with-token` is executed by the entrypoint only in `MODE=daemon`.
 - `codex-monitor` listens on all interfaces by default because `CODEX_MONITOR_HOST=0.0.0.0`.
 - Set `CODEX_MONITOR_TOKEN` before allowing remote clients to connect.
 - Prefer binding to localhost, a private subnet, or a VPN-protected interface when possible.
