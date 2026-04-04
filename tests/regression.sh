@@ -100,8 +100,22 @@ exit 1'
   assert_contains "$output" 'Docker image cleanup complete'
 }
 
+test_monitor_dockerfile_includes_native_build_deps() {
+  local dockerfile
+  dockerfile="$(<"$repo_root/codex-monitor/Dockerfile")"
+
+  assert_contains "$dockerfile" 'libglib2.0-dev'
+  assert_contains "$dockerfile" 'libasound2-dev'
+  assert_contains "$dockerfile" 'libclang-dev'
+  assert_contains "$dockerfile" 'libwebkit2gtk-4.1-dev'
+  assert_contains "$dockerfile" 'libxdo-dev'
+  assert_contains "$dockerfile" 'libayatana-appindicator3-dev'
+  assert_contains "$dockerfile" 'librsvg2-dev'
+}
+
 test_daemon_requires_token_for_non_local_bind
 test_clean_skips_when_docker_is_unavailable
 test_clean_reports_completion_when_docker_is_available
+test_monitor_dockerfile_includes_native_build_deps
 
 printf 'PASS: regression checks\n'

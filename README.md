@@ -44,6 +44,7 @@ The images share the same base setup:
 
 - `codex_monitor_daemon`
 - `codex_monitor_daemonctl`
+- the Linux native build dependencies required by the upstream Tauri/GTK and audio toolchain (`libglib2.0-dev`, `libwebkit2gtk-4.1-dev`, `libxdo-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libasound2-dev`, and `libclang-dev` during image build)
 
 Its entrypoint supports two modes:
 

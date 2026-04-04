@@ -13,9 +13,16 @@ RUN mkdir -p "$CARGO_HOME" "$RUSTUP_HOME" && \
 ENV PATH="/usr/local/cargo/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    libasound2-dev \
     build-essential \
     cmake \
+    libayatana-appindicator3-dev \
+    libclang-dev \
+    libglib2.0-dev \
     libssl-dev \
+    librsvg2-dev \
+    libwebkit2gtk-4.1-dev \
+    libxdo-dev \
     pkg-config && \
     rm -rf /var/lib/apt/lists/*
 
