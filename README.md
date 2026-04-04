@@ -1,15 +1,16 @@
 # codex-container
 
-Docker images for running the OpenAI Codex CLI in a consistent Ubuntu-based environment, with an optional `codex-monitor` variant for remote Codex Monitor daemon access.
+Docker images for running the OpenAI Codex CLI in a consistent Ubuntu-based environment, with optional `codex-monitor` and `codex-superpowers` variants for remote Codex Monitor daemon access and baked-in Superpowers skills.
 
 ## Overview
 
-This repository builds two local Docker images:
+This repository builds three local Docker images:
 
 | Image | Purpose |
 | --- | --- |
 | `codex-base` | Interactive Codex CLI environment with common development tools preinstalled |
 | `codex-monitor` | Extends `codex-base` with `codex_monitor_daemon` and `codex_monitor_daemonctl` binaries |
+| `codex-superpowers` | Extends `codex-monitor` with baked-in Superpowers skills and Codex multi-agent config |
 
 The images share the same base setup:
 
@@ -59,6 +60,21 @@ In daemon mode it also:
 - binds to `CODEX_MONITOR_HOST` and `CODEX_MONITOR_PORT`
 - stores daemon state in `/home/codex/.codexmonitor`
 
+### `codex-superpowers`
+
+`codex-superpowers` builds on top of `codex-monitor` and bakes in the Superpowers plugin for Codex. It adds:
+
+- a clone of `https://github.com/obra/superpowers.git` at `/home/codex/.codex/superpowers`
+- a skill-discovery symlink at `/home/codex/.agents/skills/superpowers`
+- Codex config at `/home/codex/.codex/config.toml` with `multi_agent = true`
+
+It keeps the same entrypoint and mode behavior as `codex-monitor`:
+
+- `MODE=daemon` remains the default
+- `MODE=interactive` remains available for shell use
+
+Superpowers is cloned from upstream `main` during image build. Rebuilding can refresh it, but Docker may reuse the cached clone layer unless you invalidate that cache or rebuild without cache.
+
 ## Build Commands
 
 Use the provided `Makefile`:
@@ -66,6 +82,7 @@ Use the provided `Makefile`:
 ```bash
 make base
 make codex-monitor
+make codex-superpowers
 make all
 make test
 make clean
@@ -75,9 +92,10 @@ Target summary:
 
 - `make base` builds `codex-base:latest`
 - `make codex-monitor` builds `codex-monitor:latest` after building `codex-base`
-- `make all` builds both images
+- `make codex-superpowers` builds `codex-superpowers:latest` after building `codex-monitor`
+- `make all` builds all three images
 - `make test` runs the image smoke tests defined in the `Makefile`
-- `make clean` removes both local images
+- `make clean` removes all three local images
 
 ## Running `codex-base`
 
@@ -155,6 +173,21 @@ docker run --rm -it \
 ```
 
 Interactive mode does not enforce `OPENAI_API_KEY` or `GITHUB_TOKEN`, and it does not run `gh auth login` during startup. If you want authenticated Codex or GitHub commands in that shell session, provide the credentials yourself and authenticate manually as needed.
+
+## Running `codex-superpowers`
+
+`codex-superpowers` accepts the same environment variables and modes as `codex-monitor`, but starts with Superpowers already installed. Use the existing `codex-monitor` environment-variable section below as the reference for `codex-superpowers` too.
+
+Interactive shell example:
+
+```bash
+docker run --rm -it \
+  -e MODE=interactive \
+  -v "$PWD":/home/codex/workspace \
+  codex-superpowers:latest
+```
+
+If you want daemon mode, use the same flags you would use for `codex-monitor` and replace only the image name.
 
 ## Environment Variables
 
@@ -269,6 +302,7 @@ This repository is focused on the OpenAI Codex CLI stack rather than the OpenCod
 - it installs `@openai/codex` instead of OpenCode tooling
 - the primary authenticated environment variables are `OPENAI_API_KEY` and `GITHUB_TOKEN`
 - it provides one optional monitor-enabled variant, `codex-monitor`
+- it provides one optional Superpowers-enabled variant, `codex-superpowers`
 - its monitor image compiles and ships Codex Monitor daemon binaries for remote backend usage
 
 ## License
