@@ -66,5 +66,5 @@ test-superpowers: codex-superpowers
 		-e MODE=interactive \
 		--entrypoint /bin/bash \
 		"$(SUPERPOWERS_IMAGE)" \
-		-lc 'codex --version && codex_monitor_daemonctl --help >/dev/null && test -d /home/codex/.codex/superpowers && test -L /home/codex/.agents/skills/superpowers && test "$(readlink /home/codex/.agents/skills/superpowers)" = "/home/codex/.codex/superpowers/skills" && grep -Fq "[features]" /home/codex/.codex/config.toml && grep -Fq "multi_agent = true" /home/codex/.codex/config.toml'
+		-lc 'codex --version && codex_monitor_daemonctl --help >/dev/null && test -d /home/codex/.codex/superpowers && test -L /home/codex/.agents/skills/superpowers && test "$(readlink -f /home/codex/.agents/skills/superpowers)" = "/home/codex/.codex/superpowers/skills" && mapfile -t config_lines < /home/codex/.codex/config.toml && test "$${#config_lines[@]}" -eq 2 && test "$${config_lines[0]}" = "[features]" && test "$${config_lines[1]}" = "multi_agent = true"'
 	@printf 'Successfully tested %s\n' "$(SUPERPOWERS_IMAGE)"
