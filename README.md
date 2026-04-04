@@ -161,6 +161,20 @@ docker run --rm -d \
 
 `OPENAI_API_KEY` can also be omitted if `-v "$HOME/.codex/auth.json:/home/codex/.codex/auth.json:ro"` is used.
 
+Example using the mounted auth file in daemon mode:
+
+```bash
+docker run --rm -d \
+  --name codex-monitor \
+  -e GITHUB_TOKEN="$GITHUB_TOKEN" \
+  -e CODEX_MONITOR_TOKEN="change-me" \
+  -p 4732:4732 \
+  -v "$HOME/.codex/auth.json:/home/codex/.codex/auth.json:ro" \
+  -v "$PWD":/home/codex/workspace \
+  -v codex-monitor-data:/home/codex/.codexmonitor \
+  codex-monitor:latest
+```
+
 ### Interactive mode
 
 If you want the monitor image as a shell environment instead of a daemon:
