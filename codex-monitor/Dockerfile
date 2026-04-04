@@ -16,11 +16,9 @@ SHELL ["/bin/bash", "-lc"]
 
 ENV PATH=/home/codex/bin:/home/codex/.cargo/bin:$PATH
 
-ARG CODEX_MONITOR_REF=main
-
 RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable && \
     mkdir -p /home/codex/bin && \
-    git clone --depth 1 --branch "$CODEX_MONITOR_REF" https://github.com/Dimillian/CodexMonitor.git /home/codex/CodexMonitor && \
+    git clone --depth 1 https://github.com/Dimillian/CodexMonitor.git /home/codex/CodexMonitor && \
     cargo build --locked --release \
       --manifest-path /home/codex/CodexMonitor/src-tauri/Cargo.toml \
       --bin codex_monitor_daemon \
