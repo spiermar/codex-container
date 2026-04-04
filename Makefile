@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := all
 
-.PHONY: all base codex-monitor clean test-base test-monitor
+.PHONY: all base codex-monitor clean test test-base test-monitor
 
 BASE_IMAGE := codex-base:latest
 MONITOR_IMAGE := codex-monitor:latest
@@ -8,6 +8,8 @@ TEST_OPENAI_API_KEY := test-openai-key
 TEST_GITHUB_TOKEN := test-github-token
 
 all: base codex-monitor
+
+test: test-base test-monitor
 
 base:
 	@printf 'Building %s from ./base...\n' "$(BASE_IMAGE)"
@@ -21,7 +23,7 @@ codex-monitor: base
 
 clean:
 	@printf 'Removing Docker images %s and %s...\n' "$(MONITOR_IMAGE)" "$(BASE_IMAGE)"
-	@docker image rm -f "$(MONITOR_IMAGE)" "$(BASE_IMAGE)"
+	@docker image rm -f "$(MONITOR_IMAGE)" "$(BASE_IMAGE)" >/dev/null 2>&1 || true
 	@printf 'Successfully removed %s and %s\n' "$(MONITOR_IMAGE)" "$(BASE_IMAGE)"
 
 test-base: base
