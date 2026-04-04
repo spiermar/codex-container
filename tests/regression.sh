@@ -113,9 +113,19 @@ test_monitor_dockerfile_includes_native_build_deps() {
   assert_contains "$dockerfile" 'librsvg2-dev'
 }
 
+test_superpowers_smoke_test_recipe_preserves_shell_expressions() {
+  local output
+  output="$(/usr/bin/make -n -C "$repo_root" test-superpowers 2>&1)"
+
+  assert_contains "$output" 'test "$(readlink -f /home/codex/.agents/skills/superpowers)" = "/home/codex/.codex/superpowers/skills"'
+  assert_contains "$output" 'cmp -s /home/codex/.codex/config.toml <(printf "[features]\nmulti_agent = true\n")'
+  assert_not_contains "$output" 'test "" = "/home/codex/.codex/superpowers/skills"'
+}
+
 test_daemon_requires_token_for_non_local_bind
 test_clean_skips_when_docker_is_unavailable
 test_clean_reports_completion_when_docker_is_available
 test_monitor_dockerfile_includes_native_build_deps
+test_superpowers_smoke_test_recipe_preserves_shell_expressions
 
 printf 'PASS: regression checks\n'
