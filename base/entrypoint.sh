@@ -1,8 +1,13 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-git config --global user.email "${GIT_EMAIL:-codex@local}"
-git config --global user.name "${GIT_NAME:-Codex}"
+if [[ -z "$(git config --global user.email 2>/dev/null || true)" ]]; then
+  git config --global user.email "${GIT_EMAIL:-codex@local}"
+fi
+
+if [[ -z "$(git config --global user.name 2>/dev/null || true)" ]]; then
+  git config --global user.name "${GIT_NAME:-Codex}"
+fi
 
 if [[ -z "${OPENAI_API_KEY:-}" ]]; then
   echo "Error: OPENAI_API_KEY is required." >&2
