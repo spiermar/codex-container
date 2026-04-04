@@ -1,23 +1,28 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-git config --global user.email "${GIT_EMAIL:-codex@local}"
-git config --global user.name "${GIT_NAME:-Codex}"
-
-if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-  echo "Error: OPENAI_API_KEY is required." >&2
-  exit 1
+if [[ -z "$(git config --global user.email 2>/dev/null || true)" ]]; then
+  git config --global user.email "${GIT_EMAIL:-codex@local}"
 fi
 
-if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-  echo "Error: GITHUB_TOKEN is required." >&2
-  exit 1
+if [[ -z "$(git config --global user.name 2>/dev/null || true)" ]]; then
+  git config --global user.name "${GIT_NAME:-Codex}"
 fi
-
-echo "$GITHUB_TOKEN" | gh auth login --with-token
 
 case "${MODE:-daemon}" in
   daemon)
+    if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+      echo "Error: OPENAI_API_KEY is required." >&2
+      exit 1
+    fi
+
+    if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+      echo "Error: GITHUB_TOKEN is required." >&2
+      exit 1
+    fi
+
+    echo "$GITHUB_TOKEN" | gh auth login --with-token
+
     echo "Starting Codex Monitor daemon..."
     daemon_cmd=(
       codex_monitor_daemon
