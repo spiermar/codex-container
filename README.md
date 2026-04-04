@@ -54,7 +54,7 @@ In daemon mode it also:
 
 - requires `OPENAI_API_KEY`
 - requires `GITHUB_TOKEN`
-- optionally accepts `CODEX_MONITOR_TOKEN`
+- requires `CODEX_MONITOR_TOKEN` for non-local binds and leaves localhost-only daemon mode unchanged
 - binds to `CODEX_MONITOR_HOST` and `CODEX_MONITOR_PORT`
 - stores daemon state in `/home/codex/.codexmonitor`
 
@@ -152,9 +152,9 @@ Interactive mode does not enforce `OPENAI_API_KEY` or `GITHUB_TOKEN`, and it doe
 | `MODE` | No | `daemon` | Supported values: `daemon`, `interactive` |
 | `OPENAI_API_KEY` | Daemon mode | none | Required only when `MODE=daemon`; not checked in interactive mode |
 | `GITHUB_TOKEN` | Daemon mode | none | Required only when `MODE=daemon`; used for `gh auth login --with-token` only in daemon mode |
-| `CODEX_MONITOR_HOST` | No | `0.0.0.0` | Daemon bind host |
+| `CODEX_MONITOR_HOST` | No | `0.0.0.0` | Daemon bind host; unauthenticated daemon mode is allowed only with `127.0.0.1` or `localhost` |
 | `CODEX_MONITOR_PORT` | No | `4732` | Daemon listen port |
-| `CODEX_MONITOR_TOKEN` | No | unset | Passed to the daemon as `--token` when set |
+| `CODEX_MONITOR_TOKEN` | No | unset | Passed to the daemon as `--token` when set; required in daemon mode when `CODEX_MONITOR_HOST` is not `127.0.0.1` or `localhost` |
 | `GIT_NAME` | No | `Codex` | Used only if global Git name is unset |
 | `GIT_EMAIL` | No | `codex@local` | Used only if global Git email is unset |
 
@@ -210,7 +210,7 @@ The daemon binds to `0.0.0.0` by default, so other devices can reach it if:
 Typical flow:
 
 1. Start `codex-monitor` with `-p 4732:4732` or your chosen port.
-2. Set `CODEX_MONITOR_TOKEN` if the daemon will be reachable beyond your local machine.
+2. Set `CODEX_MONITOR_TOKEN`; daemon startup now fails if `CODEX_MONITOR_HOST` is not `127.0.0.1` or `localhost` and the token is unset.
 3. From iOS or another remote client, connect to `http://<host-ip>:4732` or the host and port you published.
 4. If you changed `CODEX_MONITOR_PORT`, use that same port in both the container config and the client.
 
@@ -221,7 +221,7 @@ For access outside a trusted LAN, prefer a VPN, SSH tunnel, or reverse proxy wit
 - `OPENAI_API_KEY` and `GITHUB_TOKEN` are sensitive secrets; pass them with environment management appropriate for your system.
 - In `codex-monitor`, `gh auth login --with-token` is executed by the entrypoint only in `MODE=daemon`.
 - `codex-monitor` listens on all interfaces by default because `CODEX_MONITOR_HOST=0.0.0.0`.
-- Set `CODEX_MONITOR_TOKEN` before allowing remote clients to connect.
+- In daemon mode, startup fails unless `CODEX_MONITOR_TOKEN` is set whenever `CODEX_MONITOR_HOST` is not `127.0.0.1` or `localhost`.
 - Prefer binding to localhost, a private subnet, or a VPN-protected interface when possible.
 - Do not publish the daemon port broadly unless you understand the trust boundary.
 

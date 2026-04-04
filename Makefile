@@ -22,9 +22,13 @@ codex-monitor: base
 	@printf 'Successfully built %s\n' "$(MONITOR_IMAGE)"
 
 clean:
-	@printf 'Removing Docker images %s and %s...\n' "$(MONITOR_IMAGE)" "$(BASE_IMAGE)"
-	@docker image rm -f "$(MONITOR_IMAGE)" "$(BASE_IMAGE)" >/dev/null 2>&1 || true
-	@printf 'Successfully removed %s and %s\n' "$(MONITOR_IMAGE)" "$(BASE_IMAGE)"
+	@if ! command -v docker >/dev/null 2>&1; then \
+		printf 'Skipping clean: docker is not installed or not on PATH.\n'; \
+	else \
+		printf 'Removing Docker images %s and %s...\n' "$(MONITOR_IMAGE)" "$(BASE_IMAGE)"; \
+		docker image rm -f "$(MONITOR_IMAGE)" "$(BASE_IMAGE)" >/dev/null 2>&1 || true; \
+		printf 'Docker image cleanup complete for %s and %s\n' "$(MONITOR_IMAGE)" "$(BASE_IMAGE)"; \
+	fi
 
 test-base: base
 	@printf 'Testing %s toolchain...\n' "$(BASE_IMAGE)"

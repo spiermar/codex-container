@@ -11,6 +11,9 @@ fi
 
 case "${MODE:-daemon}" in
   daemon)
+    monitor_host="${CODEX_MONITOR_HOST:-0.0.0.0}"
+    monitor_port="${CODEX_MONITOR_PORT:-4732}"
+
     if [[ -z "${OPENAI_API_KEY:-}" ]]; then
       echo "Error: OPENAI_API_KEY is required." >&2
       exit 1
@@ -21,13 +24,18 @@ case "${MODE:-daemon}" in
       exit 1
     fi
 
+    if [[ -z "${CODEX_MONITOR_TOKEN:-}" ]] && [[ "$monitor_host" != "127.0.0.1" ]] && [[ "$monitor_host" != "localhost" ]]; then
+      echo "Error: CODEX_MONITOR_TOKEN is required when MODE=daemon binds CODEX_MONITOR_HOST to '$monitor_host'. Use 127.0.0.1 or localhost for unauthenticated local-only access." >&2
+      exit 1
+    fi
+
     echo "$GITHUB_TOKEN" | gh auth login --with-token
 
     echo "Starting Codex Monitor daemon..."
     daemon_cmd=(
       codex_monitor_daemon
-      --host "${CODEX_MONITOR_HOST}"
-      --port "${CODEX_MONITOR_PORT}"
+      --host "$monitor_host"
+      --port "$monitor_port"
     )
 
     if [[ -n "${CODEX_MONITOR_TOKEN:-}" ]]; then
