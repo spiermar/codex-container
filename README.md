@@ -73,7 +73,7 @@ It keeps the same entrypoint and mode behavior as `codex-monitor`:
 - `MODE=daemon` remains the default
 - `MODE=interactive` remains available for shell use
 
-Superpowers is cloned from upstream `main` during image build, so rebuilding the image refreshes it.
+Superpowers is cloned from upstream `main` during image build. Rebuilding can refresh it, but Docker may reuse the cached clone layer unless you invalidate that cache or rebuild without cache.
 
 ## Build Commands
 
@@ -154,7 +154,7 @@ Interactive mode does not enforce `OPENAI_API_KEY` or `GITHUB_TOKEN`, and it doe
 
 ## Running `codex-superpowers`
 
-`codex-superpowers` accepts the same environment variables and modes as `codex-monitor`, but starts with Superpowers already installed.
+`codex-superpowers` accepts the same environment variables and modes as `codex-monitor`, but starts with Superpowers already installed. Use the existing `codex-monitor` environment-variable section below as the reference for `codex-superpowers` too.
 
 Interactive shell example:
 
