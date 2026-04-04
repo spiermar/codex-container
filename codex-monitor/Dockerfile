@@ -3,7 +3,8 @@ FROM codex-base:latest
 USER root
 
 ENV CARGO_HOME="/usr/local/cargo" \
-    RUSTUP_HOME="/usr/local/rustup"
+    RUSTUP_HOME="/usr/local/rustup" \
+    CODEX_MONITOR_COMMIT="dd61b9abd37de5ded86e82b9fe8a83fd49d46fa5"
 
 RUN mkdir -p "$CARGO_HOME" "$RUSTUP_HOME" && \
     curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable && \
@@ -24,10 +25,11 @@ WORKDIR /home/codex
 SHELL ["/bin/bash", "-lc"]
 
 RUN mkdir -p /home/codex/bin && \
-    git clone --depth 1 https://github.com/Dimillian/CodexMonitor.git codexmonitor-src && \
+    git clone https://github.com/Dimillian/CodexMonitor.git codexmonitor-src && \
+    git -C codexmonitor-src checkout "$CODEX_MONITOR_COMMIT" && \
     source "$NVM_DIR/nvm.sh" && \
     cd codexmonitor-src && \
-    npm install && \
+    if [ -f package-lock.json ]; then npm ci; else npm install; fi && \
     cd src-tauri && \
     cargo build --locked --release --bin codex_monitor_daemon --bin codex_monitor_daemonctl && \
     install -m 0755 target/release/codex_monitor_daemon /home/codex/bin/codex_monitor_daemon && \
