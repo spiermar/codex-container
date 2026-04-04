@@ -9,7 +9,9 @@ if [[ -z "$(git config --global user.name 2>/dev/null || true)" ]]; then
   git config --global user.name "${GIT_NAME:-Codex}"
 fi
 
-if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+codex_auth_file="${HOME:-/home/codex}/.codex/auth.json"
+
+if [[ ! -f "$codex_auth_file" ]] && [[ -z "${OPENAI_API_KEY:-}" ]]; then
   echo "Error: OPENAI_API_KEY is required." >&2
   exit 1
 fi

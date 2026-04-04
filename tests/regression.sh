@@ -30,6 +30,134 @@ write_stub() {
   chmod +x "$path"
 }
 
+test_base_allows_auth_json_without_openai_api_key() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' RETURN
+
+  mkdir -p "$tmp_dir/bin" "$tmp_dir/home/.codex"
+  printf '{}\n' >"$tmp_dir/home/.codex/auth.json"
+
+  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
+exit 0'
+
+  local stdout stderr output status
+  stdout="$tmp_dir/stdout"
+  stderr="$tmp_dir/stderr"
+
+  set +e
+  HOME="$tmp_dir/home" \
+    OPENAI_API_KEY= \
+    GITHUB_TOKEN=test-github-token \
+    MODE=interactive \
+    PATH="$tmp_dir/bin:/usr/bin:/bin" \
+    bash "$repo_root/base/entrypoint.sh" >"$stdout" 2>"$stderr"
+  status=$?
+  set -e
+
+  output="$(<"$stdout")\n$(<"$stderr")"
+
+  [[ $status -eq 0 ]] || fail 'expected base entrypoint with auth.json to succeed without OPENAI_API_KEY'
+  assert_contains "$output" 'Starting interactive shell'
+}
+
+test_base_requires_openai_api_key_without_auth_json() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' RETURN
+
+  mkdir -p "$tmp_dir/bin" "$tmp_dir/home"
+  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
+exit 0'
+
+  local stdout stderr output status
+  stdout="$tmp_dir/stdout"
+  stderr="$tmp_dir/stderr"
+
+  set +e
+  HOME="$tmp_dir/home" \
+    OPENAI_API_KEY= \
+    GITHUB_TOKEN=test-github-token \
+    MODE=interactive \
+    PATH="$tmp_dir/bin:/usr/bin:/bin" \
+    bash "$repo_root/base/entrypoint.sh" >"$stdout" 2>"$stderr"
+  status=$?
+  set -e
+
+  output="$(<"$stdout")\n$(<"$stderr")"
+
+  [[ $status -ne 0 ]] || fail 'expected base entrypoint without auth.json or OPENAI_API_KEY to fail'
+  assert_contains "$output" 'Error: OPENAI_API_KEY is required.'
+}
+
+test_daemon_allows_auth_json_without_openai_api_key() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' RETURN
+
+  mkdir -p "$tmp_dir/bin" "$tmp_dir/home/.codex"
+  printf '{}\n' >"$tmp_dir/home/.codex/auth.json"
+
+  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
+exit 0'
+  write_stub "$tmp_dir/bin/codex_monitor_daemon" '#!/bin/bash
+exit 0'
+
+  local stdout stderr output status
+  stdout="$tmp_dir/stdout"
+  stderr="$tmp_dir/stderr"
+
+  set +e
+  HOME="$tmp_dir/home" \
+    OPENAI_API_KEY= \
+    MODE=daemon \
+    GITHUB_TOKEN=test-github-token \
+    CODEX_MONITOR_HOST=127.0.0.1 \
+    CODEX_MONITOR_PORT=4732 \
+    PATH="$tmp_dir/bin:/usr/bin:/bin" \
+    bash "$repo_root/codex-monitor/entrypoint.sh" >"$stdout" 2>"$stderr"
+  status=$?
+  set -e
+
+  output="$(<"$stdout")\n$(<"$stderr")"
+
+  [[ $status -eq 0 ]] || fail 'expected monitor daemon with auth.json to succeed without OPENAI_API_KEY'
+  assert_contains "$output" 'Starting Codex Monitor daemon'
+}
+
+test_daemon_requires_openai_api_key_without_auth_json() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' RETURN
+
+  mkdir -p "$tmp_dir/bin" "$tmp_dir/home"
+  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
+exit 0'
+  write_stub "$tmp_dir/bin/codex_monitor_daemon" '#!/bin/bash
+exit 0'
+
+  local stdout stderr output status
+  stdout="$tmp_dir/stdout"
+  stderr="$tmp_dir/stderr"
+
+  set +e
+  HOME="$tmp_dir/home" \
+    OPENAI_API_KEY= \
+    MODE=daemon \
+    GITHUB_TOKEN=test-github-token \
+    CODEX_MONITOR_HOST=127.0.0.1 \
+    CODEX_MONITOR_PORT=4732 \
+    PATH="$tmp_dir/bin:/usr/bin:/bin" \
+    bash "$repo_root/codex-monitor/entrypoint.sh" >"$stdout" 2>"$stderr"
+  status=$?
+  set -e
+
+  output="$(<"$stdout")\n$(<"$stderr")"
+
+  [[ $status -ne 0 ]] || fail 'expected monitor daemon without auth.json or OPENAI_API_KEY to fail'
+  assert_contains "$output" 'Error: OPENAI_API_KEY is required.'
+}
+
 test_daemon_requires_token_for_non_local_bind() {
   local tmp_dir
   tmp_dir="$(mktemp -d)"
@@ -113,9 +241,29 @@ test_monitor_dockerfile_includes_native_build_deps() {
   assert_contains "$dockerfile" 'librsvg2-dev'
 }
 
+test_readme_documents_auth_json_mount() {
+  local readme
+  readme="$(<"$repo_root/README.md")"
+
+  assert_contains "$readme" '/home/codex/.codex/auth.json'
+  assert_contains "$readme" '-v "$HOME/.codex/auth.json:/home/codex/.codex/auth.json:ro"'
+  assert_contains "$readme" 'requires either `/home/codex/.codex/auth.json` or `OPENAI_API_KEY`'
+  assert_contains "$readme" '| `OPENAI_API_KEY` | If `/home/codex/.codex/auth.json` is not mounted | none | Required by the entrypoint unless the auth file is mounted |'
+  assert_contains "$readme" '`OPENAI_API_KEY` can also be omitted if `-v "$HOME/.codex/auth.json:/home/codex/.codex/auth.json:ro"` is used.'
+  assert_contains "$readme" 'When `/home/codex/.codex/auth.json` is mounted, `OPENAI_API_KEY` is optional.'
+  assert_not_contains "$readme" 'valid `OPENAI_API_KEY` and `GITHUB_TOKEN` when using authenticated Codex workflows'
+  assert_not_contains "$readme" $'- requires `OPENAI_API_KEY`\n- requires `GITHUB_TOKEN`'
+  assert_not_contains "$readme" '| `OPENAI_API_KEY` | Yes | none | Required by the entrypoint |'
+}
+
+test_base_allows_auth_json_without_openai_api_key
+test_base_requires_openai_api_key_without_auth_json
+test_daemon_allows_auth_json_without_openai_api_key
+test_daemon_requires_openai_api_key_without_auth_json
 test_daemon_requires_token_for_non_local_bind
 test_clean_skips_when_docker_is_unavailable
 test_clean_reports_completion_when_docker_is_available
 test_monitor_dockerfile_includes_native_build_deps
+test_readme_documents_auth_json_mount
 
 printf 'PASS: regression checks\n'
