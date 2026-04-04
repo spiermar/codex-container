@@ -24,7 +24,7 @@ The images share the same base setup:
 - Docker with permission to build and run images
 - GNU `make`
 - network access during image builds for package and dependency downloads
-- valid `OPENAI_API_KEY` and `GITHUB_TOKEN` when using authenticated Codex workflows
+- `GITHUB_TOKEN` plus either a mounted `auth.json` or `OPENAI_API_KEY` when using authenticated Codex workflows
 
 ## Image Variants
 
@@ -33,7 +33,7 @@ The images share the same base setup:
 `codex-base` is the main interactive development image. Its entrypoint:
 
 - configures global Git identity if one is not already set
-- requires `OPENAI_API_KEY`
+- requires either `/home/codex/.codex/auth.json` or `OPENAI_API_KEY`
 - requires `GITHUB_TOKEN`
 - logs `gh` in with the provided token
 - starts an interactive shell when `MODE=interactive`
@@ -53,7 +53,7 @@ Its entrypoint supports two modes:
 
 In daemon mode it also:
 
-- requires `OPENAI_API_KEY`
+- requires either `/home/codex/.codex/auth.json` or `OPENAI_API_KEY`
 - requires `GITHUB_TOKEN`
 - requires `CODEX_MONITOR_TOKEN` for non-local binds and leaves localhost-only daemon mode unchanged
 - binds to `CODEX_MONITOR_HOST` and `CODEX_MONITOR_PORT`
@@ -91,6 +91,24 @@ docker run --rm -it \
   codex-base:latest
 ```
 
+To use a host-side Codex auth file instead of `OPENAI_API_KEY`, add:
+
+```bash
+-v "$HOME/.codex/auth.json:/home/codex/.codex/auth.json:ro"
+```
+
+When `/home/codex/.codex/auth.json` is mounted, `OPENAI_API_KEY` is optional.
+
+Example using the mounted auth file:
+
+```bash
+docker run --rm -it \
+  -e GITHUB_TOKEN="$GITHUB_TOKEN" \
+  -v "$HOME/.codex/auth.json:/home/codex/.codex/auth.json:ro" \
+  -v "$PWD":/home/codex/workspace \
+  codex-base:latest
+```
+
 Optional Git identity overrides:
 
 ```bash
@@ -102,6 +120,8 @@ docker run --rm -it \
   -v "$PWD":/home/codex/workspace \
   codex-base:latest
 ```
+
+`OPENAI_API_KEY` can also be omitted if `-v "$HOME/.codex/auth.json:/home/codex/.codex/auth.json:ro"` is used.
 
 ## Running `codex-monitor`
 
@@ -120,6 +140,8 @@ docker run --rm -d \
   -v codex-monitor-data:/home/codex/.codexmonitor \
   codex-monitor:latest
 ```
+
+`OPENAI_API_KEY` can also be omitted if `-v "$HOME/.codex/auth.json:/home/codex/.codex/auth.json:ro"` is used.
 
 ### Interactive mode
 
@@ -140,7 +162,7 @@ Interactive mode does not enforce `OPENAI_API_KEY` or `GITHUB_TOKEN`, and it doe
 
 | Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
-| `OPENAI_API_KEY` | Yes | none | Required by the entrypoint |
+| `OPENAI_API_KEY` | If `/home/codex/.codex/auth.json` is not mounted | none | Required by the entrypoint unless the auth file is mounted |
 | `GITHUB_TOKEN` | Yes | none | Used for `gh auth login --with-token` |
 | `MODE` | No | `interactive` | Only `interactive` is supported |
 | `GIT_NAME` | No | `Codex` | Used only if global Git name is unset |
@@ -151,7 +173,7 @@ Interactive mode does not enforce `OPENAI_API_KEY` or `GITHUB_TOKEN`, and it doe
 | Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
 | `MODE` | No | `daemon` | Supported values: `daemon`, `interactive` |
-| `OPENAI_API_KEY` | Daemon mode | none | Required only when `MODE=daemon`; not checked in interactive mode |
+| `OPENAI_API_KEY` | Daemon mode if `/home/codex/.codex/auth.json` is not mounted | none | Required only when `MODE=daemon` and the auth file is not mounted; not checked in interactive mode |
 | `GITHUB_TOKEN` | Daemon mode | none | Required only when `MODE=daemon`; used for `gh auth login --with-token` only in daemon mode |
 | `CODEX_MONITOR_HOST` | No | `0.0.0.0` | Daemon bind host; unauthenticated daemon mode is allowed only with `127.0.0.1` or `localhost` |
 | `CODEX_MONITOR_PORT` | No | `4732` | Daemon listen port |
@@ -219,7 +241,7 @@ For access outside a trusted LAN, prefer a VPN, SSH tunnel, or reverse proxy wit
 
 ## Security Notes
 
-- `OPENAI_API_KEY` and `GITHUB_TOKEN` are sensitive secrets; pass them with environment management appropriate for your system.
+- `OPENAI_API_KEY`, `GITHUB_TOKEN`, and host-side `~/.codex/auth.json` contents are sensitive secrets; handle them with environment and file-permission management appropriate for your system.
 - In `codex-monitor`, `gh auth login --with-token` is executed by the entrypoint only in `MODE=daemon`.
 - `codex-monitor` listens on all interfaces by default because `CODEX_MONITOR_HOST=0.0.0.0`.
 - In daemon mode, startup fails unless `CODEX_MONITOR_TOKEN` is set whenever `CODEX_MONITOR_HOST` is not `127.0.0.1` or `localhost`.
