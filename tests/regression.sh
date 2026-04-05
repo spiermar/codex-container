@@ -262,10 +262,13 @@ test_base_server_smoke_test_recipe_uses_timeout_and_websocket_mode() {
   local output
   output="$(/usr/bin/make -n -C "$repo_root" test-base 2>&1)"
 
+  assert_contains "$output" "bash -lc"
+  assert_contains "$output" 'set -o pipefail'
   assert_contains "$output" 'timeout 10s docker run --rm'
   assert_contains "$output" '-e MODE=server'
   assert_contains "$output" '-e APP_SERVER_HOST=0.0.0.0'
   assert_contains "$output" '-e APP_SERVER_PORT=4500'
+  assert_contains "$output" 'test "${PIPESTATUS[0]}" -eq 124'
   assert_contains "$output" 'grep -F "Starting Codex app-server on ws://0.0.0.0:4500..."'
 }
 
