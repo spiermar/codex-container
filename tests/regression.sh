@@ -233,9 +233,15 @@ test_readme_documents_server_mode() {
   assert_contains "$readme" '| `MODE` | No | `interactive` | Supported values: `interactive`, `server` |'
   assert_contains "$readme" '| `APP_SERVER_HOST` | No | `0.0.0.0` | Host used when `MODE=server` builds the WebSocket listen URL |'
   assert_contains "$readme" '| `APP_SERVER_PORT` | No | `4500` | Port used when `MODE=server` builds the WebSocket listen URL |'
-  assert_contains "$readme" '-e MODE=server \
+  assert_contains "$readme" 'Server mode example:'
+  assert_contains "$readme" 'docker run --rm \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e GITHUB_TOKEN="$GITHUB_TOKEN" \
+  -e MODE=server \
   -p 4500:4500 \
+  -v "$PWD":/home/codex/workspace \
   codex-base:latest'
+  assert_not_contains "$readme" 'Server-mode-specific flags:'
   assert_contains "$readme" '`codex-superpowers` accepts the same environment variables and entrypoint behavior as `codex-base`, including `MODE=server`.'
 }
 

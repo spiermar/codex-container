@@ -115,14 +115,6 @@ docker run --rm \
 
 This starts `codex app-server --listen ws://0.0.0.0:4500` inside the container so remote clients can connect through the published Docker port.
 
-Server-mode-specific flags:
-
-```bash
--e MODE=server \
-  -p 4500:4500 \
-  codex-base:latest
-```
-
 Optional Git identity overrides:
 
 ```bash
