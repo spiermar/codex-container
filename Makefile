@@ -44,7 +44,7 @@ test-base: base
 		-e MODE=interactive \
 		--entrypoint /bin/bash \
 		"$(BASE_IMAGE)" \
-		-lc 'codex --version && gh --version && node --version'
+		-lc 'codex --version && gh --version && node --version && id -u codex | grep -Fx 1000 && id -g codex | grep -Fx 1000'
 	@printf 'Successfully tested %s\n' "$(BASE_IMAGE)"
 
 test-monitor: codex-monitor

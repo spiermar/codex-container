@@ -241,6 +241,30 @@ test_monitor_dockerfile_includes_native_build_deps() {
   assert_contains "$dockerfile" 'librsvg2-dev'
 }
 
+test_base_dockerfile_creates_codex_user_with_uid_gid_1000() {
+  local dockerfile
+  dockerfile="$(<"$repo_root/base/Dockerfile")"
+
+  assert_contains "$dockerfile" 'getent passwd 1000'
+  assert_contains "$dockerfile" 'getent passwd codex >/dev/null'
+  assert_contains "$dockerfile" 'userdel -r codex 2>/dev/null || true'
+  assert_contains "$dockerfile" "'\$4 == 1000 {print \$1}'"
+  assert_contains "$dockerfile" 'existing_group="$(getent group 1000 | cut -d: -f1)"'
+  assert_contains "$dockerfile" 'groupmod -n "codex-old-$$" codex'
+  assert_contains "$dockerfile" 'groupmod -n codex "$existing_group"'
+  assert_contains "$dockerfile" 'elif getent group codex >/dev/null; then'
+  assert_contains "$dockerfile" 'groupmod -g 1000 codex'
+  assert_contains "$dockerfile" 'groupadd -g 1000 codex'
+  assert_contains "$dockerfile" 'useradd -u 1000 -g 1000 -m -s /bin/bash codex'
+}
+
+test_base_dockerfile_precreates_codex_config_dir() {
+  local dockerfile
+  dockerfile="$(<"$repo_root/base/Dockerfile")"
+
+  assert_contains "$dockerfile" 'mkdir -p /home/codex/.codex /home/codex/workspace'
+}
+
 test_readme_documents_auth_json_mount() {
   local readme
   readme="$(<"$repo_root/README.md")"
@@ -270,11 +294,22 @@ test_superpowers_smoke_test_recipe_preserves_shell_expressions() {
   assert_not_contains "$output" 'test "" = "/home/codex/.codex/superpowers/skills"'
 }
 
+test_base_smoke_test_recipe_checks_codex_uid_gid() {
+  local output
+  output="$(/usr/bin/make -n -C "$repo_root" test-base 2>&1)"
+
+  assert_contains "$output" 'id -u codex | grep -Fx 1000'
+  assert_contains "$output" 'id -g codex | grep -Fx 1000'
+}
+
 test_daemon_requires_token_for_non_local_bind
 test_clean_skips_when_docker_is_unavailable
 test_clean_reports_completion_when_docker_is_available
 test_monitor_dockerfile_includes_native_build_deps
+test_base_dockerfile_creates_codex_user_with_uid_gid_1000
+test_base_dockerfile_precreates_codex_config_dir
 test_readme_documents_auth_json_mount
 test_superpowers_smoke_test_recipe_preserves_shell_expressions
+test_base_smoke_test_recipe_checks_codex_uid_gid
 
 printf 'PASS: regression checks\n'

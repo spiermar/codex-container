@@ -3,6 +3,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    bubblewrap \
     ca-certificates \
     curl \
     git \
@@ -28,14 +29,30 @@ RUN mkdir -p /etc/apt/keyrings && \
     apt-get install -y --no-install-recommends gh && \
     rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m -s /bin/bash codex && \
+RUN (getent passwd 1000 | cut -d: -f1 | xargs -r userdel -r 2>/dev/null || true) && \
+    (getent passwd codex >/dev/null && userdel -r codex 2>/dev/null || true) && \
+    (getent passwd | awk -F: '$4 == 1000 {print $1}' | xargs -r -n1 usermod -g nogroup 2>/dev/null || true) && \
+    existing_group="$(getent group 1000 | cut -d: -f1)" && \
+    if [ -n "$existing_group" ]; then \
+        if [ "$existing_group" != "codex" ]; then \
+            if getent group codex >/dev/null; then \
+                groupmod -n "codex-old-$$" codex; \
+            fi; \
+            groupmod -n codex "$existing_group"; \
+        fi; \
+    elif getent group codex >/dev/null; then \
+        groupmod -g 1000 codex; \
+    else \
+        groupadd -g 1000 codex; \
+    fi && \
+    useradd -u 1000 -g 1000 -m -s /bin/bash codex && \
     mkdir -p /etc/sudoers.d && \
     echo "codex ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/codex && \
     chmod 0440 /etc/sudoers.d/codex
 
 COPY --chown=codex:codex entrypoint.sh /home/codex/entrypoint.sh
 RUN chmod +x /home/codex/entrypoint.sh && \
-    mkdir -p /home/codex/workspace && \
+    mkdir -p /home/codex/.codex /home/codex/workspace && \
     chown -R codex:codex /home/codex
 
 USER codex
