@@ -258,6 +258,17 @@ test_superpowers_smoke_test_recipe_matches_two_image_model() {
   assert_not_contains "$output" 'test "" = "/home/codex/.codex/superpowers/skills"'
 }
 
+test_base_server_smoke_test_recipe_uses_timeout_and_websocket_mode() {
+  local output
+  output="$(/usr/bin/make -n -C "$repo_root" test-base 2>&1)"
+
+  assert_contains "$output" 'timeout 10s docker run --rm'
+  assert_contains "$output" '-e MODE=server'
+  assert_contains "$output" '-e APP_SERVER_HOST=0.0.0.0'
+  assert_contains "$output" '-e APP_SERVER_PORT=4500'
+  assert_contains "$output" 'grep -F "Starting Codex app-server on ws://0.0.0.0:4500..."'
+}
+
 test_base_smoke_test_recipe_checks_codex_uid_gid() {
   local output
   output="$(/usr/bin/make -n -C "$repo_root" test-base 2>&1)"
@@ -275,6 +286,7 @@ test_readme_documents_auth_json_mount
 test_readme_documents_two_image_model
 test_readme_documents_server_mode
 test_superpowers_smoke_test_recipe_matches_two_image_model
+test_base_server_smoke_test_recipe_uses_timeout_and_websocket_mode
 test_base_smoke_test_recipe_checks_codex_uid_gid
 
 printf 'PASS: regression checks\n'

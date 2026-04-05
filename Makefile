@@ -39,6 +39,16 @@ test-base: base
 		--entrypoint /bin/bash \
 		"$(BASE_IMAGE)" \
 		-lc 'codex --version && gh --version && node --version && id -u codex | grep -Fx 1000 && id -g codex | grep -Fx 1000'
+	@printf 'Testing %s app-server startup...\n' "$(BASE_IMAGE)"
+	@timeout 10s docker run --rm \
+		-e OPENAI_API_KEY="$(TEST_OPENAI_API_KEY)" \
+		-e GITHUB_TOKEN="$(TEST_GITHUB_TOKEN)" \
+		-e MODE=server \
+		-e APP_SERVER_HOST=0.0.0.0 \
+		-e APP_SERVER_PORT=4500 \
+		"$(BASE_IMAGE)" 2>&1 | tee /tmp/codex-base-server-smoke.log
+	@grep -F "Starting Codex app-server on ws://0.0.0.0:4500..." /tmp/codex-base-server-smoke.log
+	@rm -f /tmp/codex-base-server-smoke.log
 	@printf 'Successfully tested %s\n' "$(BASE_IMAGE)"
 
 test-superpowers: codex-superpowers
