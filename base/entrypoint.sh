@@ -28,8 +28,13 @@ case "${MODE:-interactive}" in
     echo "Starting interactive shell..."
     exec /bin/bash
     ;;
+  server)
+    listen_url="ws://${APP_SERVER_HOST:-0.0.0.0}:${APP_SERVER_PORT:-4500}"
+    echo "Starting Codex app-server on ${listen_url}..."
+    exec codex app-server --listen "$listen_url"
+    ;;
   *)
-    echo "Error: unsupported MODE '${MODE}'. Supported modes: interactive" >&2
+    echo "Error: unsupported MODE '${MODE}'. Supported modes: interactive, server" >&2
     exit 1
     ;;
 esac
