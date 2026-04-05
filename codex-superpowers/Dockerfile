@@ -1,4 +1,4 @@
-FROM codex-monitor:latest
+FROM codex-base:latest
 
 USER codex
 WORKDIR /home/codex

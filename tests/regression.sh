@@ -90,147 +90,6 @@ exit 0'
   assert_contains "$output" 'Error: OPENAI_API_KEY is required.'
 }
 
-test_daemon_allows_auth_json_without_openai_api_key() {
-  local tmp_dir
-  tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "$tmp_dir"' RETURN
-
-  mkdir -p "$tmp_dir/bin" "$tmp_dir/home/.codex"
-  printf '{}\n' >"$tmp_dir/home/.codex/auth.json"
-
-  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
-exit 0'
-  write_stub "$tmp_dir/bin/codex_monitor_daemon" '#!/bin/bash
-exit 0'
-
-  local stdout stderr output status
-  stdout="$tmp_dir/stdout"
-  stderr="$tmp_dir/stderr"
-
-  set +e
-  HOME="$tmp_dir/home" \
-    OPENAI_API_KEY= \
-    MODE=daemon \
-    GITHUB_TOKEN=test-github-token \
-    CODEX_MONITOR_HOST=127.0.0.1 \
-    CODEX_MONITOR_PORT=4732 \
-    PATH="$tmp_dir/bin:/usr/bin:/bin" \
-    bash "$repo_root/codex-monitor/entrypoint.sh" >"$stdout" 2>"$stderr"
-  status=$?
-  set -e
-
-  output="$(<"$stdout")\n$(<"$stderr")"
-
-  [[ $status -eq 0 ]] || fail 'expected monitor daemon with auth.json to succeed without OPENAI_API_KEY'
-  assert_contains "$output" 'Starting Codex Monitor daemon'
-}
-
-test_daemon_requires_openai_api_key_without_auth_json() {
-  local tmp_dir
-  tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "$tmp_dir"' RETURN
-
-  mkdir -p "$tmp_dir/bin" "$tmp_dir/home"
-  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
-exit 0'
-  write_stub "$tmp_dir/bin/codex_monitor_daemon" '#!/bin/bash
-exit 0'
-
-  local stdout stderr output status
-  stdout="$tmp_dir/stdout"
-  stderr="$tmp_dir/stderr"
-
-  set +e
-  HOME="$tmp_dir/home" \
-    OPENAI_API_KEY= \
-    MODE=daemon \
-    GITHUB_TOKEN=test-github-token \
-    CODEX_MONITOR_HOST=127.0.0.1 \
-    CODEX_MONITOR_PORT=4732 \
-    PATH="$tmp_dir/bin:/usr/bin:/bin" \
-    bash "$repo_root/codex-monitor/entrypoint.sh" >"$stdout" 2>"$stderr"
-  status=$?
-  set -e
-
-  output="$(<"$stdout")\n$(<"$stderr")"
-
-  [[ $status -ne 0 ]] || fail 'expected monitor daemon without auth.json or OPENAI_API_KEY to fail'
-  assert_contains "$output" 'Error: OPENAI_API_KEY is required.'
-}
-
-test_daemon_requires_token_for_non_local_bind() {
-  local tmp_dir
-  tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "$tmp_dir"' RETURN
-
-  mkdir -p "$tmp_dir/bin" "$tmp_dir/home"
-  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
-exit 0'
-  write_stub "$tmp_dir/bin/codex_monitor_daemon" '#!/bin/bash
-exit 0'
-
-  local stdout stderr output status
-  stdout="$tmp_dir/stdout"
-  stderr="$tmp_dir/stderr"
-
-  set +e
-  HOME="$tmp_dir/home" \
-    MODE=daemon \
-    OPENAI_API_KEY=test-openai-key \
-    GITHUB_TOKEN=test-github-token \
-    CODEX_MONITOR_HOST=0.0.0.0 \
-    CODEX_MONITOR_PORT=4732 \
-    PATH="$tmp_dir/bin:/usr/bin:/bin" \
-    bash "$repo_root/codex-monitor/entrypoint.sh" >"$stdout" 2>"$stderr"
-  status=$?
-  set -e
-
-  output="$(<"$stdout")\n$(<"$stderr")"
-
-  [[ $status -ne 0 ]] || fail 'expected daemon startup without a token on a non-local bind to fail'
-  assert_contains "$output" 'CODEX_MONITOR_TOKEN'
-  assert_contains "$output" 'CODEX_MONITOR_HOST'
-}
-
-test_daemon_uses_listen_flag_for_bind_address() {
-  local tmp_dir
-  tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "$tmp_dir"' RETURN
-
-  mkdir -p "$tmp_dir/bin" "$tmp_dir/home/.codex"
-  printf '{}\n' >"$tmp_dir/home/.codex/auth.json"
-
-  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
-exit 0'
-  write_stub "$tmp_dir/bin/codex_monitor_daemon" "#!/bin/bash
-printf '%s\n' \"\$*\" >\"$tmp_dir/daemon-args\""
-
-  local stdout stderr output status daemon_args
-  stdout="$tmp_dir/stdout"
-  stderr="$tmp_dir/stderr"
-
-  set +e
-  HOME="$tmp_dir/home" \
-    OPENAI_API_KEY= \
-    MODE=daemon \
-    GITHUB_TOKEN=test-github-token \
-    CODEX_MONITOR_HOST=127.0.0.1 \
-    CODEX_MONITOR_PORT=4732 \
-    PATH="$tmp_dir/bin:/usr/bin:/bin" \
-    bash "$repo_root/codex-monitor/entrypoint.sh" >"$stdout" 2>"$stderr"
-  status=$?
-  set -e
-
-  output="$(<"$stdout")\n$(<"$stderr")"
-  daemon_args="$(<"$tmp_dir/daemon-args")"
-
-  [[ $status -eq 0 ]] || fail 'expected daemon startup to succeed for local bind test'
-  assert_contains "$output" 'Starting Codex Monitor daemon'
-  assert_contains "$daemon_args" '--listen 127.0.0.1:4732'
-  assert_not_contains "$daemon_args" '--host'
-  assert_not_contains "$daemon_args" '--port'
-}
-
 test_clean_skips_when_docker_is_unavailable() {
   local tmp_dir
   tmp_dir="$(mktemp -d)"
@@ -267,17 +126,27 @@ exit 1'
   assert_contains "$output" 'Docker image cleanup complete'
 }
 
-test_monitor_dockerfile_includes_native_build_deps() {
+test_superpowers_dockerfile_builds_from_base_without_monitor() {
   local dockerfile
-  dockerfile="$(<"$repo_root/codex-monitor/Dockerfile")"
+  dockerfile="$(<"$repo_root/codex-superpowers/Dockerfile")"
 
-  assert_contains "$dockerfile" 'libglib2.0-dev'
-  assert_contains "$dockerfile" 'libasound2-dev'
-  assert_contains "$dockerfile" 'libclang-dev'
-  assert_contains "$dockerfile" 'libwebkit2gtk-4.1-dev'
-  assert_contains "$dockerfile" 'libxdo-dev'
-  assert_contains "$dockerfile" 'libayatana-appindicator3-dev'
-  assert_contains "$dockerfile" 'librsvg2-dev'
+  assert_not_contains "$dockerfile" 'FROM codex-monitor:latest'
+  assert_contains "$dockerfile" 'FROM codex-base:latest'
+  assert_not_contains "$dockerfile" 'codex_monitor_daemonctl'
+}
+
+test_makefile_uses_two_image_model() {
+  local makefile
+  makefile="$(<"$repo_root/Makefile")"
+
+  assert_contains "$makefile" '.PHONY: all base codex-superpowers clean test test-base test-superpowers'
+  assert_contains "$makefile" 'all: base codex-superpowers'
+  assert_contains "$makefile" 'test: test-base test-superpowers'
+  assert_contains "$makefile" 'codex-superpowers: base'
+  assert_not_contains "$makefile" 'MONITOR_IMAGE :='
+  assert_not_contains "$makefile" 'codex-monitor:'
+  assert_not_contains "$makefile" 'test-monitor:'
+  assert_not_contains "$makefile" 'codex-monitor '
 }
 
 test_base_dockerfile_creates_codex_user_with_uid_gid_1000() {
@@ -319,17 +188,35 @@ test_readme_documents_auth_json_mount() {
   assert_not_contains "$readme" '| `OPENAI_API_KEY` | Yes | none | Required by the entrypoint |'
 }
 
+test_readme_documents_two_image_model() {
+  local readme
+  readme="$(<"$repo_root/README.md")"
+
+  assert_contains "$readme" '| `codex-base` | Interactive Codex CLI environment with common development tools preinstalled |'
+  assert_contains "$readme" '| `codex-superpowers` | Extends `codex-base` with baked-in Superpowers skills and Codex multi-agent config |'
+  assert_contains "$readme" '- `make codex-superpowers` builds `codex-superpowers:latest` after building `codex-base`'
+  assert_contains "$readme" '`codex-superpowers` accepts the same environment variables and entrypoint behavior as `codex-base`'
+  assert_not_contains "$readme" '| `codex-monitor` |'
+  assert_not_contains "$readme" '## Running `codex-monitor`'
+  assert_not_contains "$readme" '### `codex-monitor`'
+  assert_not_contains "$readme" 'CODEX_MONITOR_TOKEN'
+}
+
 test_base_allows_auth_json_without_openai_api_key
 test_base_requires_openai_api_key_without_auth_json
-test_daemon_allows_auth_json_without_openai_api_key
-test_daemon_requires_openai_api_key_without_auth_json
+test_superpowers_dockerfile_builds_from_base_without_monitor
+test_makefile_uses_two_image_model
 
-test_superpowers_smoke_test_recipe_preserves_shell_expressions() {
+test_superpowers_smoke_test_recipe_matches_two_image_model() {
   local output
   output="$(/usr/bin/make -n -C "$repo_root" test-superpowers 2>&1)"
 
+  assert_contains "$output" 'codex --version'
+  assert_contains "$output" 'test -d /home/codex/.codex/superpowers'
   assert_contains "$output" 'test "$(readlink -f /home/codex/.agents/skills/superpowers)" = "/home/codex/.codex/superpowers/skills"'
   assert_contains "$output" 'cmp -s /home/codex/.codex/config.toml <(printf "[features]\nmulti_agent = true\n")'
+  assert_not_contains "$output" 'test -L /home/codex/.agents/skills/superpowers'
+  assert_not_contains "$output" 'codex_monitor_daemonctl'
   assert_not_contains "$output" 'test "" = "/home/codex/.codex/superpowers/skills"'
 }
 
@@ -341,15 +228,13 @@ test_base_smoke_test_recipe_checks_codex_uid_gid() {
   assert_contains "$output" 'id -g codex | grep -Fx 1000'
 }
 
-test_daemon_requires_token_for_non_local_bind
-test_daemon_uses_listen_flag_for_bind_address
 test_clean_skips_when_docker_is_unavailable
 test_clean_reports_completion_when_docker_is_available
-test_monitor_dockerfile_includes_native_build_deps
 test_base_dockerfile_creates_codex_user_with_uid_gid_1000
 test_base_dockerfile_precreates_codex_config_dir
 test_readme_documents_auth_json_mount
-test_superpowers_smoke_test_recipe_preserves_shell_expressions
+test_readme_documents_two_image_model
+test_superpowers_smoke_test_recipe_matches_two_image_model
 test_base_smoke_test_recipe_checks_codex_uid_gid
 
 printf 'PASS: regression checks\n'
