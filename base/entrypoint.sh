@@ -21,7 +21,7 @@ if [[ -z "${GITHUB_TOKEN:-}" ]]; then
   exit 1
 fi
 
-echo "$GITHUB_TOKEN" | gh auth login --with-token
+gh auth setup-git
 
 case "${MODE:-interactive}" in
   interactive)

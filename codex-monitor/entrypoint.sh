@@ -31,7 +31,7 @@ case "${MODE:-daemon}" in
       exit 1
     fi
 
-    echo "$GITHUB_TOKEN" | gh auth login --with-token
+    gh auth setup-git
 
     echo "Starting Codex Monitor daemon..."
     daemon_cmd=(
