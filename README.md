@@ -37,6 +37,7 @@ The images share the same base setup:
 - requires `GITHUB_TOKEN`
 - logs `gh` in with the provided token
 - starts an interactive shell when `MODE=interactive`
+- starts `codex app-server --listen ws://...` when `MODE=server`
 
 ### `codex-superpowers`
 
@@ -46,7 +47,7 @@ The images share the same base setup:
 - a skill-discovery symlink at `/home/codex/.agents/skills/superpowers`
 - Codex config at `/home/codex/.codex/config.toml` with `multi_agent = true`
 
-`codex-superpowers` accepts the same environment variables and entrypoint behavior as `codex-base`.
+`codex-superpowers` accepts the same environment variables and entrypoint behavior as `codex-base`, including `MODE=server`.
 
 Superpowers is cloned from upstream `main` during image build. Rebuilding can refresh it, but Docker may reuse the cached clone layer unless you invalidate that cache or rebuild without cache.
 
@@ -100,6 +101,20 @@ docker run --rm -it \
   codex-base:latest
 ```
 
+Server mode example:
+
+```bash
+docker run --rm \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e GITHUB_TOKEN="$GITHUB_TOKEN" \
+  -e MODE=server \
+  -p 4500:4500 \
+  -v "$PWD":/home/codex/workspace \
+  codex-base:latest
+```
+
+This starts `codex app-server --listen ws://0.0.0.0:4500` inside the container so remote clients can connect through the published Docker port.
+
 Optional Git identity overrides:
 
 ```bash
@@ -146,7 +161,9 @@ docker run --rm -it \
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | If `/home/codex/.codex/auth.json` is not mounted | none | Required by the entrypoint unless the auth file is mounted |
 | `GITHUB_TOKEN` | Yes | none | Used for `gh auth login --with-token` |
-| `MODE` | No | `interactive` | Only `interactive` is supported |
+| `MODE` | No | `interactive` | Supported values: `interactive`, `server` |
+| `APP_SERVER_HOST` | No | `0.0.0.0` | Host used when `MODE=server` builds the WebSocket listen URL |
+| `APP_SERVER_PORT` | No | `4500` | Port used when `MODE=server` builds the WebSocket listen URL |
 | `GIT_NAME` | No | `Codex` | Used only if global Git name is unset |
 | `GIT_EMAIL` | No | `codex@local` | Used only if global Git email is unset |
 

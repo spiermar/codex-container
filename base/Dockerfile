@@ -59,6 +59,8 @@ USER codex
 WORKDIR /home/codex
 
 ENV MODE=interactive \
+    APP_SERVER_HOST=0.0.0.0 \
+    APP_SERVER_PORT=4500 \
     GIT_EMAIL=codex@local \
     GIT_NAME=Codex \
     NVM_DIR=/home/codex/.nvm

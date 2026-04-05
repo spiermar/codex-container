@@ -90,6 +90,17 @@ exit 0'
   assert_contains "$output" 'Error: OPENAI_API_KEY is required.'
 }
 
+test_base_entrypoint_supports_server_mode() {
+  local entrypoint
+  entrypoint="$(<"$repo_root/base/entrypoint.sh")"
+
+  assert_contains "$entrypoint" 'server)'
+  assert_contains "$entrypoint" 'listen_url="ws://${APP_SERVER_HOST:-0.0.0.0}:${APP_SERVER_PORT:-4500}"'
+  assert_contains "$entrypoint" 'Starting Codex app-server on ${listen_url}...'
+  assert_contains "$entrypoint" 'exec codex app-server --listen "$listen_url"'
+  assert_contains "$entrypoint" "Supported modes: interactive, server"
+}
+
 test_clean_skips_when_docker_is_unavailable() {
   local tmp_dir
   tmp_dir="$(mktemp -d)"
@@ -173,6 +184,18 @@ test_base_dockerfile_precreates_codex_config_dir() {
   assert_contains "$dockerfile" 'mkdir -p /home/codex/.codex /home/codex/workspace'
 }
 
+test_base_dockerfile_sets_app_server_defaults() {
+  local dockerfile
+  dockerfile="$(<"$repo_root/base/Dockerfile")"
+
+  assert_contains "$dockerfile" 'ENV MODE=interactive \
+    APP_SERVER_HOST=0.0.0.0 \
+    APP_SERVER_PORT=4500 \
+    GIT_EMAIL=codex@local \
+    GIT_NAME=Codex \
+    NVM_DIR=/home/codex/.nvm'
+}
+
 test_readme_documents_auth_json_mount() {
   local readme
   readme="$(<"$repo_root/README.md")"
@@ -202,8 +225,29 @@ test_readme_documents_two_image_model() {
   assert_not_contains "$readme" 'CODEX_MONITOR_TOKEN'
 }
 
+test_readme_documents_server_mode() {
+  local readme
+  readme="$(<"$repo_root/README.md")"
+
+  assert_contains "$readme" '- starts `codex app-server --listen ws://...` when `MODE=server`'
+  assert_contains "$readme" '| `MODE` | No | `interactive` | Supported values: `interactive`, `server` |'
+  assert_contains "$readme" '| `APP_SERVER_HOST` | No | `0.0.0.0` | Host used when `MODE=server` builds the WebSocket listen URL |'
+  assert_contains "$readme" '| `APP_SERVER_PORT` | No | `4500` | Port used when `MODE=server` builds the WebSocket listen URL |'
+  assert_contains "$readme" 'Server mode example:'
+  assert_contains "$readme" 'docker run --rm \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e GITHUB_TOKEN="$GITHUB_TOKEN" \
+  -e MODE=server \
+  -p 4500:4500 \
+  -v "$PWD":/home/codex/workspace \
+  codex-base:latest'
+  assert_not_contains "$readme" 'Server-mode-specific flags:'
+  assert_contains "$readme" '`codex-superpowers` accepts the same environment variables and entrypoint behavior as `codex-base`, including `MODE=server`.'
+}
+
 test_base_allows_auth_json_without_openai_api_key
 test_base_requires_openai_api_key_without_auth_json
+test_base_entrypoint_supports_server_mode
 test_superpowers_dockerfile_builds_from_base_without_monitor
 test_makefile_uses_two_image_model
 
@@ -220,6 +264,20 @@ test_superpowers_smoke_test_recipe_matches_two_image_model() {
   assert_not_contains "$output" 'test "" = "/home/codex/.codex/superpowers/skills"'
 }
 
+test_base_server_smoke_test_recipe_uses_timeout_and_websocket_mode() {
+  local output
+  output="$(/usr/bin/make -n -C "$repo_root" test-base 2>&1)"
+
+  assert_contains "$output" "bash -lc"
+  assert_contains "$output" 'set -o pipefail'
+  assert_contains "$output" 'timeout 10s docker run --rm'
+  assert_contains "$output" '-e MODE=server'
+  assert_contains "$output" '-e APP_SERVER_HOST=0.0.0.0'
+  assert_contains "$output" '-e APP_SERVER_PORT=4500'
+  assert_contains "$output" 'test "${PIPESTATUS[0]}" -eq 124'
+  assert_contains "$output" 'grep -F "Starting Codex app-server on ws://0.0.0.0:4500..."'
+}
+
 test_base_smoke_test_recipe_checks_codex_uid_gid() {
   local output
   output="$(/usr/bin/make -n -C "$repo_root" test-base 2>&1)"
@@ -232,9 +290,12 @@ test_clean_skips_when_docker_is_unavailable
 test_clean_reports_completion_when_docker_is_available
 test_base_dockerfile_creates_codex_user_with_uid_gid_1000
 test_base_dockerfile_precreates_codex_config_dir
+test_base_dockerfile_sets_app_server_defaults
 test_readme_documents_auth_json_mount
 test_readme_documents_two_image_model
+test_readme_documents_server_mode
 test_superpowers_smoke_test_recipe_matches_two_image_model
+test_base_server_smoke_test_recipe_uses_timeout_and_websocket_mode
 test_base_smoke_test_recipe_checks_codex_uid_gid
 
 printf 'PASS: regression checks\n'
