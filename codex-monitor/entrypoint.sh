@@ -36,8 +36,7 @@ case "${MODE:-daemon}" in
     echo "Starting Codex Monitor daemon..."
     daemon_cmd=(
       codex_monitor_daemon
-      --host "$monitor_host"
-      --port "$monitor_port"
+      --listen "${monitor_host}:${monitor_port}"
     )
 
     if [[ -n "${CODEX_MONITOR_TOKEN:-}" ]]; then

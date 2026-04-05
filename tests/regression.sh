@@ -192,6 +192,45 @@ exit 0'
   assert_contains "$output" 'CODEX_MONITOR_HOST'
 }
 
+test_daemon_uses_listen_flag_for_bind_address() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' RETURN
+
+  mkdir -p "$tmp_dir/bin" "$tmp_dir/home/.codex"
+  printf '{}\n' >"$tmp_dir/home/.codex/auth.json"
+
+  write_stub "$tmp_dir/bin/gh" '#!/bin/bash
+exit 0'
+  write_stub "$tmp_dir/bin/codex_monitor_daemon" "#!/bin/bash
+printf '%s\n' \"\$*\" >\"$tmp_dir/daemon-args\""
+
+  local stdout stderr output status daemon_args
+  stdout="$tmp_dir/stdout"
+  stderr="$tmp_dir/stderr"
+
+  set +e
+  HOME="$tmp_dir/home" \
+    OPENAI_API_KEY= \
+    MODE=daemon \
+    GITHUB_TOKEN=test-github-token \
+    CODEX_MONITOR_HOST=127.0.0.1 \
+    CODEX_MONITOR_PORT=4732 \
+    PATH="$tmp_dir/bin:/usr/bin:/bin" \
+    bash "$repo_root/codex-monitor/entrypoint.sh" >"$stdout" 2>"$stderr"
+  status=$?
+  set -e
+
+  output="$(<"$stdout")\n$(<"$stderr")"
+  daemon_args="$(<"$tmp_dir/daemon-args")"
+
+  [[ $status -eq 0 ]] || fail 'expected daemon startup to succeed for local bind test'
+  assert_contains "$output" 'Starting Codex Monitor daemon'
+  assert_contains "$daemon_args" '--listen 127.0.0.1:4732'
+  assert_not_contains "$daemon_args" '--host'
+  assert_not_contains "$daemon_args" '--port'
+}
+
 test_clean_skips_when_docker_is_unavailable() {
   local tmp_dir
   tmp_dir="$(mktemp -d)"
@@ -303,6 +342,7 @@ test_base_smoke_test_recipe_checks_codex_uid_gid() {
 }
 
 test_daemon_requires_token_for_non_local_bind
+test_daemon_uses_listen_flag_for_bind_address
 test_clean_skips_when_docker_is_unavailable
 test_clean_reports_completion_when_docker_is_available
 test_monitor_dockerfile_includes_native_build_deps
