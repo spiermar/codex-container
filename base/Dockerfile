@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release \
     make \
     openssh-client \
+    openssh-server \
     postgresql-client \
     ripgrep \
     sudo \
@@ -50,6 +51,17 @@ RUN (getent passwd 1000 | cut -d: -f1 | xargs -r userdel -r 2>/dev/null || true)
     echo "codex ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/codex && \
     chmod 0440 /etc/sudoers.d/codex
 
+RUN mkdir -p /run/sshd /etc/ssh/sshd_config.d && \
+    printf '%s\n' \
+        'PasswordAuthentication no' \
+        'KbdInteractiveAuthentication no' \
+        'PermitRootLogin no' \
+        'PubkeyAuthentication yes' \
+        'AuthorizedKeysFile .ssh/authorized_keys' \
+        'AllowUsers codex' \
+        > /etc/ssh/sshd_config.d/codex.conf && \
+    rm -f /etc/ssh/ssh_host_*
+
 COPY --chown=codex:codex entrypoint.sh /home/codex/entrypoint.sh
 RUN chmod +x /home/codex/entrypoint.sh && \
     mkdir -p /home/codex/.codex /home/codex/workspace && \
@@ -59,8 +71,7 @@ USER codex
 WORKDIR /home/codex
 
 ENV MODE=interactive \
-    APP_SERVER_HOST=0.0.0.0 \
-    APP_SERVER_PORT=4500 \
+    SSH_PUBLIC_KEY_FILE=/run/codex/authorized_key.pub \
     GIT_EMAIL=codex@local \
     GIT_NAME=Codex \
     NVM_DIR=/home/codex/.nvm
@@ -82,5 +93,7 @@ RUN curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh |
 ENV PATH=/home/codex/.local/bin:$PATH
 
 WORKDIR /home/codex/workspace
+
+EXPOSE 22
 
 ENTRYPOINT ["/home/codex/entrypoint.sh"]
