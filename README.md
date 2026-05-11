@@ -109,7 +109,7 @@ docker run --rm \
   -e GITHUB_TOKEN="$GITHUB_TOKEN" \
   -e MODE=server \
   -p 2222:22 \
-  -v "$HOME/.ssh/id_ed25519.pub:/run/codex/authorized_key.pub:ro" \
+  -v "$HOME/.ssh/id_ed25519.pub:/run/secrets/codex_ssh_public_key:ro" \
   -v "$PWD":/home/codex/workspace \
   codex-base:latest
 ```
@@ -167,7 +167,7 @@ docker run --rm -it \
 | `OPENAI_API_KEY` | If `/home/codex/.codex/auth.json` is not mounted | none | Required by the entrypoint unless the auth file is mounted |
 | `GITHUB_TOKEN` | Yes | none | Used for `gh auth login --with-token` |
 | `MODE` | No | `interactive` | Supported values: `interactive`, `server` |
-| `SSH_PUBLIC_KEY_FILE` | For `MODE=server` | `/run/codex/authorized_key.pub` | Public key file copied to `/home/codex/.ssh/authorized_keys` before `sshd` starts |
+| `SSH_PUBLIC_KEY_FILE` | For `MODE=server` | `/run/secrets/codex_ssh_public_key` | Public key file copied to `/home/codex/.ssh/authorized_keys` before `sshd` starts |
 | `GIT_NAME` | No | `Codex` | Used only if global Git name is unset |
 | `GIT_EMAIL` | No | `codex@local` | Used only if global Git email is unset |
 

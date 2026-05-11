@@ -71,7 +71,7 @@ USER codex
 WORKDIR /home/codex
 
 ENV MODE=interactive \
-    SSH_PUBLIC_KEY_FILE=/run/codex/authorized_key.pub \
+    SSH_PUBLIC_KEY_FILE=/run/secrets/codex_ssh_public_key \
     GIT_EMAIL=codex@local \
     GIT_NAME=Codex \
     NVM_DIR=/home/codex/.nvm

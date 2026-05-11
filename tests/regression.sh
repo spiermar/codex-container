@@ -281,7 +281,7 @@ test_base_dockerfile_sets_ssh_server_defaults() {
   assert_contains "$dockerfile" 'rm -f /etc/ssh/ssh_host_*'
   assert_contains "$dockerfile" 'EXPOSE 22'
   assert_contains "$dockerfile" 'ENV MODE=interactive \
-    SSH_PUBLIC_KEY_FILE=/run/codex/authorized_key.pub \
+    SSH_PUBLIC_KEY_FILE=/run/secrets/codex_ssh_public_key \
     GIT_EMAIL=codex@local \
     GIT_NAME=Codex \
     NVM_DIR=/home/codex/.nvm'
@@ -324,14 +324,14 @@ test_readme_documents_ssh_server_mode() {
 
   assert_contains "$readme" '- starts `sshd` on port 22 when `MODE=server`'
   assert_contains "$readme" '| `MODE` | No | `interactive` | Supported values: `interactive`, `server` |'
-  assert_contains "$readme" '| `SSH_PUBLIC_KEY_FILE` | For `MODE=server` | `/run/codex/authorized_key.pub` | Public key file copied to `/home/codex/.ssh/authorized_keys` before `sshd` starts |'
+  assert_contains "$readme" '| `SSH_PUBLIC_KEY_FILE` | For `MODE=server` | `/run/secrets/codex_ssh_public_key` | Public key file copied to `/home/codex/.ssh/authorized_keys` before `sshd` starts |'
   assert_contains "$readme" 'Server mode example:'
   assert_contains "$readme" 'docker run --rm \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
   -e GITHUB_TOKEN="$GITHUB_TOKEN" \
   -e MODE=server \
   -p 2222:22 \
-  -v "$HOME/.ssh/id_ed25519.pub:/run/codex/authorized_key.pub:ro" \
+  -v "$HOME/.ssh/id_ed25519.pub:/run/secrets/codex_ssh_public_key:ro" \
   -v "$PWD":/home/codex/workspace \
   codex-base:latest'
   assert_contains "$readme" 'ssh -p 2222 codex@localhost'
@@ -370,7 +370,7 @@ test_base_server_smoke_test_recipe_uses_timeout_and_ssh_mode() {
   assert_contains "$output" 'set -o pipefail'
   assert_contains "$output" 'timeout 10s docker run --rm'
   assert_contains "$output" '-e MODE=server'
-  assert_contains "$output" '-v "$key_file:/run/codex/authorized_key.pub:ro"'
+  assert_contains "$output" '-v "$key_file:/run/secrets/codex_ssh_public_key:ro"'
   assert_contains "$output" 'test "$status" -eq 124'
   assert_contains "$output" 'grep -F "Starting SSH server on 0.0.0.0:22..."'
   assert_not_contains "$output" 'APP_SERVER_HOST'

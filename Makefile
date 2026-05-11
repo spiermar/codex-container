@@ -47,7 +47,7 @@ test-base: base
 			-e OPENAI_API_KEY="$(TEST_OPENAI_API_KEY)" \
 			-e GITHUB_TOKEN="$(TEST_GITHUB_TOKEN)" \
 			-e MODE=server \
-			-v "$$key_file:/run/codex/authorized_key.pub:ro" \
+			-v "$$key_file:/run/secrets/codex_ssh_public_key:ro" \
 			"$(BASE_IMAGE)" 2>&1 | tee /tmp/codex-base-server-smoke.log; \
 		status="$${PIPESTATUS[0]}"; \
 		rm -f "$$key_file"; \
