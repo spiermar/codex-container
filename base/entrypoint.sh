@@ -23,15 +23,46 @@ fi
 
 gh auth setup-git
 
+start_ssh_server() {
+  local ssh_public_key_file="${SSH_PUBLIC_KEY_FILE:-}"
+
+  if [[ -z "$ssh_public_key_file" ]]; then
+    echo "Error: SSH_PUBLIC_KEY_FILE is required for MODE=server." >&2
+    exit 1
+  fi
+
+  if [[ ! -f "$ssh_public_key_file" ]]; then
+    echo "Error: SSH_PUBLIC_KEY_FILE '$ssh_public_key_file' does not exist." >&2
+    exit 1
+  fi
+
+  if [[ ! -r "$ssh_public_key_file" ]]; then
+    echo "Error: SSH_PUBLIC_KEY_FILE '$ssh_public_key_file' is not readable." >&2
+    exit 1
+  fi
+
+  local ssh_dir="${HOME:-/home/codex}/.ssh"
+  local authorized_keys_file="$ssh_dir/authorized_keys"
+
+  mkdir -p "$ssh_dir"
+  chmod 700 "$ssh_dir"
+  cp "$ssh_public_key_file" "$authorized_keys_file"
+  chmod 600 "$authorized_keys_file"
+
+  sudo ssh-keygen -A
+  sudo mkdir -p /run/sshd
+
+  echo "Starting SSH server on 0.0.0.0:22..."
+  exec sudo /usr/sbin/sshd -D -e
+}
+
 case "${MODE:-interactive}" in
   interactive)
     echo "Starting interactive shell..."
     exec /bin/bash
     ;;
   server)
-    listen_url="ws://${APP_SERVER_HOST:-0.0.0.0}:${APP_SERVER_PORT:-4500}"
-    echo "Starting Codex app-server on ${listen_url}..."
-    exec codex app-server --listen "$listen_url"
+    start_ssh_server
     ;;
   *)
     echo "Error: unsupported MODE '${MODE}'. Supported modes: interactive, server" >&2
